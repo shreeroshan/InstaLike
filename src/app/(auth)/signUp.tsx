@@ -1,10 +1,41 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native'
-import React from 'react'
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native'
+import React, { useEffect, useState } from 'react'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
+import { useAuth } from '@/context/AuthContext'
 
 const signUp = () => {
-  const router=useRouter()
+  const[email,setEmail]=useState("")
+  const[password,setPassword]=useState("")
+  const[loading,setLoading]=useState(false)
+  const router = useRouter()
+  
+  const {signUp}=useAuth();
+
+  useEffect(()=>{
+    router.push("/(auth)/onBoarding")
+  },[])
+
+  const handleSignUp=async()=>{
+    if(!email || !password){
+      Alert.alert("Error","Please fill in all fields.")
+    }
+
+    if(password.length<3){
+      Alert.alert("Error","Password must be at least 3 characters.")
+    }
+
+    setLoading(true)
+    try{
+      await signUp(email,password)
+    }catch (error){
+      Alert.alert("Error","Failed to sign up. Please try again.")
+    }finally{
+      setLoading(false)
+    }
+  }
+
+  
   return (
     <SafeAreaView edges={['top',"bottom"]} style={styles.container}>
       <View style={styles.content}>
@@ -18,6 +49,8 @@ const signUp = () => {
             autoComplete='email'
             keyboardType='email-address'
             autoCapitalize='none'
+            value={email}
+            onChangeText={setEmail}
             style={styles.input}
             />
             <TextInput 
@@ -26,10 +59,19 @@ const signUp = () => {
             autoComplete='password'
             secureTextEntry
             autoCapitalize='none'
+            value={password}
+            onChangeText={setPassword}
             style={styles.input}
             />
-            <TouchableOpacity style={styles.button}><Text style={styles.buttonText}>Sign Up</Text></TouchableOpacity>
-            <TouchableOpacity style={styles.linkButton} onPress={()=>{router.push("/(auth)/signIn")}} ><Text style={styles.linkButtonText}>Alreday have an account? <Text style={styles.linkButtonTextBold}>Sign In</Text></Text></TouchableOpacity>
+            <TouchableOpacity style={styles.button}onPress={handleSignUp}>
+              {loading ? (
+                <ActivityIndicator size={24} color="#fff"/>
+              ):( <Text style={styles.buttonText} >Sign Up</Text>)}
+              </TouchableOpacity>
+            <TouchableOpacity style={styles.linkButton} onPress={()=>{router.push("/(auth)/signIn")}} >
+              <Text style={styles.linkButtonText}>Alreday have an account? 
+                <Text style={styles.linkButtonTextBold}>Sign In</Text></Text>
+            </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>

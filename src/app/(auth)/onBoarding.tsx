@@ -1,9 +1,9 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native'
-import React, { useState } from 'react'
+import { useRouter } from 'expo-router'
+import { useState } from 'react'
+import { ActivityIndicator, Alert, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import {useRouter } from 'expo-router'
 
-
+import * as ImagePicker from "expo-image-picker"
 
 export default function SignUpScreen(){
 
@@ -12,9 +12,38 @@ export default function SignUpScreen(){
 
   const [loading, setLoading]=useState(false)
   const router=useRouter()
-
+  const [profileImage,setProfileImage]=useState<string | null>(null)
   const handleComplete=()=>{
 
+  }
+  // const cameraOption=()=>{}
+  const showOptions=async()=>{
+    Alert.alert("Select Profile image.","Choose an option",[
+      // {"text":"Camera", onPress:cameraOption},
+      {"text":"Galary", onPress:pickImage},
+      {"text":"Cancel", style:"cancel"}
+    ])
+  }
+  const pickImage=async()=>{
+    const {status}= await ImagePicker.getMediaLibraryPermissionsAsync()
+    if (status!=="granted"){
+      Alert.alert(
+        "Permission needed",
+        "We need  camera roll persmissions to select a profile image"
+      )
+      return ; 
+    }
+    const result= await ImagePicker.launchImageLibraryAsync({
+      mediaTypes:['images'],
+      allowsEditing:false,
+      aspect:[1,1],
+      quality:0.8
+    }
+    )
+    if(!result.canceled && result.assets[0]){
+      setProfileImage(result.assets[0].uri)
+    }
+    console.log(result)
   }
     return (
         <SafeAreaView edges={['top',"bottom"]} style={styles.container}>
@@ -26,10 +55,13 @@ export default function SignUpScreen(){
           </Text>
         </View>
           <View style={styles.form}>
-            <TouchableOpacity style={styles.imageContainer}>
-              <View style={styles.placeholderImage}>
+            <TouchableOpacity style={styles.imageContainer} onPress={showOptions}>
+             {profileImage?(<Image 
+             source={{uri:profileImage}}
+             style={styles.profileImage}
+             />): (<View style={styles.placeholderImage}>
               <Text style={styles.placeholderText}>+</Text>
-              </View>
+              </View>)}
               <View style={styles.editBadge}>
                 <Text style={styles.editText}>Edit</Text>
               </View>
@@ -37,14 +69,16 @@ export default function SignUpScreen(){
 
              <TextInput 
                         placeholder='Full name'
-                        placeholderTextColor={"#999"}                        autoCapitalize='none'
+                        placeholderTextColor={"#999"}                       
+                        autoCapitalize='none'
                         value={name}
                         onChangeText={setName}
                         style={styles.input}
               />
              <TextInput 
                         placeholder='Username'
-                        placeholderTextColor={"#999"}                        autoCapitalize='none'
+                        placeholderTextColor={"#999"}                        
+                        autoCapitalize='none'
                         value={username}
                         onChangeText={setUsername}
                         style={styles.input}
@@ -97,6 +131,11 @@ const styles = StyleSheet.create({
     width:"100%",
     marginBottom:16,
     borderColor:"#e0e0e0"
+  },
+  profileImage:{
+    width:120,
+    height:120,
+    borderRadius:60
   },
   button:{
     backgroundColor:"#000",

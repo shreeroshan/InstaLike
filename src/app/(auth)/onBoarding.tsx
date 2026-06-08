@@ -3,6 +3,9 @@ import { useState } from 'react'
 import { ActivityIndicator, Alert, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
+import { useAuth } from '@/context/AuthContext'
+import { supabase } from '@/lib/supabase/client'
+import { uploadProfileImage } from '@/lib/supabase/storage'
 import * as ImagePicker from "expo-image-picker"
 
 export default function SignUpScreen(){
@@ -13,7 +16,61 @@ export default function SignUpScreen(){
   const [loading, setLoading]=useState(false)
   const router=useRouter()
   const [profileImage,setProfileImage]=useState<string | null>(null)
-  const handleComplete=()=>{
+  const{user,updateUser}=useAuth()
+  const handleComplete= async()=>{
+    if(!name || !username){
+      Alert.alert("Error","Please fill in all fields.")
+    }
+
+    if(username.length<3){
+      Alert.alert("Error","Username must be at least 3 characters.")
+    }
+    setLoading(true)
+    try{  
+      if(!user){
+        throw new Error("User not authenticated.")
+      }
+        const {data:existingUser}= await supabase.from ("profiles")
+        .select("id")
+        .eq("username",username)
+        .neq("id",user.id)
+        .single()
+        if(existingUser){
+          Alert.alert("Error",
+            "Username is already taken"
+          )
+          setLoading(false)
+          return;
+        }
+//Upload profile image
+        let profileImageUrl:string | undefined
+        if(profileImage){
+          try{
+            
+           profileImageUrl= await uploadProfileImage(user.id,profileImage)
+          }catch(error){
+            console.log("unable to upload the image",error)
+            Alert.alert(
+              "Warning",
+              "Failed to upload profile image. Continuing without image"
+            )
+          }
+        }
+
+       //Update profile image
+        await updateUser({
+          name,
+          username,
+          profileImage:profileImageUrl,
+          onBoardingCompleted:true
+        })
+        router.replace("/(tabs)")
+
+    }catch (error){
+      Alert.alert("Error","Failed to complete. Please try again.")
+    }finally{
+      setLoading(false)
+    }
 
   }
   // const cameraOption=()=>{}
@@ -36,7 +93,7 @@ export default function SignUpScreen(){
     const result= await ImagePicker.launchImageLibraryAsync({
       mediaTypes:['images'],
       allowsEditing:false,
-      aspect:[1,1],
+      aspect:[1,1], 
       quality:0.8
     }
     )

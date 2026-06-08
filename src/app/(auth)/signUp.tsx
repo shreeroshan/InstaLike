@@ -1,8 +1,8 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native'
-import React, { useEffect, useState } from 'react'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
 import { useAuth } from '@/context/AuthContext'
+import { useRouter } from 'expo-router'
+import { useState } from 'react'
+import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 const signUp = () => {
   const[email,setEmail]=useState("")
@@ -11,10 +11,6 @@ const signUp = () => {
   const router = useRouter()
   
   const {signUp}=useAuth();
-
-  useEffect(()=>{
-    router.push("/(auth)/onBoarding")
-  },[])
 
   const handleSignUp=async()=>{
     if(!email || !password){
@@ -28,7 +24,9 @@ const signUp = () => {
     setLoading(true)
     try{
       await signUp(email,password)
+      router.push("/(auth)/onBoarding")
     }catch (error){
+      console.log(error)
       Alert.alert("Error","Failed to sign up. Please try again.")
     }finally{
       setLoading(false)

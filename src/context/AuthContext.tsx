@@ -1,5 +1,11 @@
 import { supabase } from "@/lib/supabase/client";
-import { createContext, ReactNode, useContext, useState } from "react";
+import {
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
 export interface User {
   id: string;
@@ -12,6 +18,7 @@ export interface User {
 
 interface AuthContextType {
   user: User | null;
+  isLoading: boolean;
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<void>;
@@ -21,6 +28,31 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    checkSession();
+  }, []);
+
+  const checkSession = async () => {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        const profile = await fetchUserProfile(session.user.id);
+        setUser(profile);
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error("Error encountered fetching the users", error);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const fetchUserProfile = async (userId: string): Promise<User | null> => {
     try {
@@ -142,6 +174,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     <AuthContext.Provider
       value={{
         user,
+        isLoading,
         signUp,
         signIn,
         updateUser,

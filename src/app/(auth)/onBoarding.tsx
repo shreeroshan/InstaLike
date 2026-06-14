@@ -25,6 +25,7 @@ export default function SignUpScreen() {
   const router = useRouter();
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const { user, updateUser } = useAuth();
+
   const handleComplete = async () => {
     if (!name || !username) {
       Alert.alert("Error", "Please fill in all fields.");
@@ -77,6 +78,7 @@ export default function SignUpScreen() {
       setLoading(false);
     }
   };
+
   // const cameraOption=()=>{}
   const showOptions = async () => {
     Alert.alert("Select Profile image.", "Choose an option", [
@@ -85,6 +87,7 @@ export default function SignUpScreen() {
       { text: "Cancel", style: "cancel" },
     ]);
   };
+
   const pickImage = async () => {
     const { status } = await ImagePicker.getMediaLibraryPermissionsAsync();
     if (status !== "granted") {
@@ -105,6 +108,7 @@ export default function SignUpScreen() {
     }
     console.log(result);
   };
+
   return (
     <SafeAreaView edges={["top", "bottom"]} style={styles.container}>
       <View style={styles.content}>

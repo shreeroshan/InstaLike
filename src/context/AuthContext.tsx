@@ -22,6 +22,7 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -170,6 +171,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const logout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setUser(null);
+    } catch (error) {
+      console.error("Error logging out:", error);
+      throw error;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -178,6 +190,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         signUp,
         signIn,
         updateUser,
+        logout,
       }}
     >
       {children}

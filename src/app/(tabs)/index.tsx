@@ -1,7 +1,10 @@
+import { useAuth } from "@/context/AuthContext";
+import usePosts, { Post } from "@/hooks/usePosts";
 import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import {
   Alert,
+  FlatList,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -15,10 +18,61 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+interface PostCardProps {
+  post: Post;
+  currentUserId?: string;
+}
+
+const PostCard = ({ post, currentUserId }: PostCardProps) => {
+  const postUser = post.profiles;
+
+  return (
+    <View style={styles.postContainer}>
+      <View style={styles.userInfo}>
+        {postUser?.profile_image ? (
+          <Image
+            source={{ uri: postUser.profile_image }}
+            style={styles.avatar}
+          />
+        ) : (
+          <View style={[styles.avatar, styles.avatarPlaceholder]}>
+            <Text style={styles.avatarText}>
+              {postUser?.name?.[0]?.toUpperCase() || "U"}
+            </Text>
+          </View>
+        )}
+
+        <View>
+          <Text style={styles.userName}>{postUser?.name || "User"}</Text>
+          <Text style={styles.userHandle}>
+            @{postUser?.username || "unknown"}
+          </Text>
+        </View>
+      </View>
+
+      {post.image_url ? (
+        <Image source={{ uri: post.image_url }} style={styles.postImage} />
+      ) : null}
+
+      {post.description ? (
+        <Text style={styles.postDescription}>{post.description}</Text>
+      ) : null}
+
+      <Text style={styles.timestamp}>
+        {new Date(post.created_at).toLocaleString()}
+      </Text>
+    </View>
+  );
+};
+
 export default function Index() {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [description, setDescription] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const { createPost, posts } = usePosts();
+  const { user } = useAuth();
 
   const showOptions = async () => {
     Alert.alert("Select Image", "Choose an option", [
@@ -28,25 +82,40 @@ export default function Index() {
   };
 
   const pickImage = async () => {
-    const { status } = await ImagePicker.getMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert(
-        "Permission needed",
-        "We need camera roll permissions to select a photo.",
-      );
-      return;
-    }
+    try {
+      const { status } = await ImagePicker.getMediaLibraryPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission needed",
+          "We need camera roll permissions to select a photo.",
+        );
+        return;
+      }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: "images",
-      allowsEditing: false,
-      aspect: [4, 5],
-      quality: 0.8,
-    });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: "images",
+        allowsEditing: false,
+        aspect: [4, 5],
+        quality: 0.8,
+      });
 
-    if (!result.canceled && result.assets[0]) {
+      if (result.canceled) {
+        return;
+      }
+
+      if (!result.assets?.length) {
+        Alert.alert("Error", "No image was selected. Please try again.");
+        return;
+      }
+
       setPreviewImage(result.assets[0].uri);
       setModalVisible(true);
+    } catch (error) {
+      console.error("Image picker error:", error);
+      Alert.alert(
+        "Error",
+        "Unable to open the image picker. Please try again.",
+      );
     }
   };
 
@@ -55,18 +124,36 @@ export default function Index() {
     setDescription("");
   };
 
-  const handlePost = () => {
+  const handlePost = async () => {
     if (!previewImage) return;
-    console.log("Posting image", { previewImage, description });
-    Alert.alert(
-      "Post ready",
-      "Your image and description are ready to publish.",
-    );
-    handleCloseModal();
+    setIsUploading(true);
+    try {
+      await createPost(previewImage, description);
+      setPreviewImage(null);
+      setDescription("");
+      handleCloseModal();
+    } catch (error) {
+      console.error("Error creating post:", error);
+      Alert.alert("Error", "failed to create post. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const renderPost = ({ item }: { item: Post }) => {
+    return <PostCard post={item} currentUserId={user?.id} />;
   };
 
   return (
     <SafeAreaView style={styles.container} edges={["bottom", "top"]}>
+      <FlatList
+        data={posts}
+        renderItem={renderPost}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+      />
+
       <TouchableOpacity style={styles.fab} onPress={showOptions}>
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
@@ -129,8 +216,8 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "stretch",
+    justifyContent: "flex-start",
     backgroundColor: "#fff",
   },
   fab: {
@@ -233,5 +320,67 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+  },
+  listContent: {
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: 110,
+  },
+  postContainer: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    marginBottom: 14,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#e6e6e6",
+    elevation: 2,
+  },
+  userInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 12,
+    gap: 10,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#ddd",
+  },
+  avatarPlaceholder: {
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#bbb",
+  },
+  avatarText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  userName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#111",
+  },
+  userHandle: {
+    fontSize: 12,
+    color: "#666",
+  },
+  postImage: {
+    width: "100%",
+    height: 320,
+    backgroundColor: "#f0f0f0",
+  },
+  postDescription: {
+    fontSize: 14,
+    color: "#333",
+    padding: 12,
+    lineHeight: 20,
+  },
+  timestamp: {
+    fontSize: 12,
+    color: "#999",
+    paddingHorizontal: 12,
+    paddingBottom: 12,
   },
 });
